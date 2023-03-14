@@ -1,0 +1,8 @@
+prefix=/home/laia/project_ws/devel
+
+Name: project_group852
+Description: Description of project_group852
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
