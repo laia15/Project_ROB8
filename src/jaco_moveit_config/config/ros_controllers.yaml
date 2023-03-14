@@ -1,0 +1,74 @@
+jaco_arm_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - j2n6s300_joint_1
+    - j2n6s300_joint_2
+    - j2n6s300_joint_3
+    - j2n6s300_joint_4
+    - j2n6s300_joint_5
+  gains:
+    j2n6s300_joint_1:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_2:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_3:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_4:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_5:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+jaco_hand_controller:
+  type: effort_controllers/JointTrajectoryController
+  joints:
+    - j2n6s300_joint_finger_1
+    - j2n6s300_joint_finger_tip_1
+    - j2n6s300_joint_finger_2
+    - j2n6s300_joint_finger_tip_2
+    - j2n6s300_joint_finger_3
+    - j2n6s300_joint_finger_tip_3
+  gains:
+    j2n6s300_joint_finger_1:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_finger_tip_1:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_finger_2:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_finger_tip_2:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_finger_3:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1
+    j2n6s300_joint_finger_tip_3:
+      p: 100
+      d: 1
+      i: 1
+      i_clamp: 1

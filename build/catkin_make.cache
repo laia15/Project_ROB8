@@ -1,0 +1,2 @@
+jaco_moveit_config:project_group852
+-DCATKIN_DEVEL_PREFIX=/home/laia/project_ws/devel -DCMAKE_INSTALL_PREFIX=/home/laia/project_ws/install -G Unix Makefiles
