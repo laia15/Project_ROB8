@@ -1,5 +1,12 @@
 # Project_ROB8
 
+Remember to pull changes from the github before submitting your own: `git pull`
+
+To push your changes, first add them `git add /file` or if you want to add everything `git add .`
+Then commit them `git commit -m "A relevant message"`
+Then push to the remote repository (github) `git push origin main`
+
+Remember to use `git status` to list all new or modified files that haven't been commited yet
 
 # Matlab development
 1. Detect if there is movement or not:
