@@ -1,0 +1,22 @@
+<package>
+  <name>jaco</name>
+  <version>0.0.0</version>
+  <description>gazebo package for jaco</description>
+  <maintainer email="wtolst19@student.aau.dk">William Tolstrup</maintainer>
+
+  <license>BSD</license>
+
+  <author email="wtolst19@student.aau.dk">William Tolstrup</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>gazebo_plugins</run_depend>
+  <run_depend>gazebo_ros</run_depend>
+  <run_depend>gazebo_ros_control</run_depend>
+  <run_depend>kinova_control</run_depend>
+  <run_depend>kinova_description</run_depend>
+  <run_depend>xacro</run_depend>
+
+  <export>
+  </export>
+</package>

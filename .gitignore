@@ -17,7 +17,7 @@
 *.a
 
 #Stuff built by rosmake
-*/build
+*/build/
 */bin
 */lib/*.so
 */msg_gen
@@ -26,6 +26,9 @@
 */catkin_generated
 */cmake_install.cmake
 */CATKIN_IGNORE
+*/devel/
+*/logs/
+/.catkin_tools/
 
 
 #Stuff added by make eclipse-project
