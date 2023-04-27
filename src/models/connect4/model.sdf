@@ -1,0 +1,57 @@
+<?xml version='1.0' ?>
+<sdf version='1.7'>
+  <model name='connect4'>
+    <static>true</static>
+    <link name='base_link'>
+      <inertial>
+        <pose>-0.161334 -0.027247 0.000799 0 -0 0</pose>
+        <mass>2.04265</mass>
+        <inertia>
+          <ixx>0.014489</ixx>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyy>0.005333</iyy>
+          <iyz>0</iyz>
+          <izz>0.010137</izz>
+        </inertia>
+      </inertial>
+      
+      <collision name='base_link_collision'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>0.001 0.001 0.001</scale>
+            <uri>meshes/connect4.stl</uri>
+          </mesh>
+        </geometry>
+        <surface>
+          <contact>
+            <ode/>
+          </contact>
+          <friction>
+            <ode>
+              <mu>0.2</mu>
+              <mu2>0.2</mu2>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+      
+      <visual name='base_link_visual'>
+        <pose>0 0 0 0 -0 0</pose>
+        <geometry>
+          <mesh>
+            <scale>0.001 0.001 0.001</scale>
+            <uri>meshes/connect4.stl</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <script>
+            <name>Gazebo/Silver</name>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
