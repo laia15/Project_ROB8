@@ -8,11 +8,18 @@ def command_callback(msg):
     command_string = msg.data
 
     # Choose the configuration depending on the MATLAB signal (in joint angles, radians)
-    command_dict =     {'pick': [3.2, 4.0, 1.05, 1.4, 6, 3.8],
-                       'ready': [3.2, 3.8, 0.9, 1.4, 6, 3.8],
-                        'stop': [0, 0, 0, 0, 0, 0],
-                        'open': [0.1],
-                        'close': [0.85]}
+    command_dict =     {'up': [3.19, 3.4, 0.5, 1.4, 6.2, 1.6],
+                       'ready': [1.63, 3.8, 0.5, 1.4, 6, 2.3],
+                        'pick': [1.62, 4.035, 0.61, 1.4, 6.025, 2.0],
+                        'open': [0.8],
+                        'close': [0.95],
+                        'pos1': [3.19, 3.6, 0.85, 1.4, 6.2, 1.6],
+                        'pos2': [3.19, 3.65, 0.925, 1.4, 6.2, 1.6],
+                        'pos3': [3.19, 3.7, 1, 1.4, 6.2, 1.6],
+                        'pos4': [3.19, 3.75, 1.0725, 1.4, 6.2, 1.6],
+                        'pos5': [3.19, 3.8, 1.15, 1.4, 6.2, 1.6],
+                        'pos6': [],
+                        'pos7': []}
     
     joint_values_list = command_dict.get(command_string, None)
 

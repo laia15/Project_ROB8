@@ -15,6 +15,13 @@ disp(['Starting state machine in state: ', state]);
 while true
     switch state
         case 'Startup'
+            % Send the 'open' command
+            command_arm.Data = 'open';
+            send(command_publisher, command_arm);
+            
+            % Wait for a short period of time
+            pause(2);
+
             % Send the 'up' command
             command_arm.Data = 'up';
             send(command_publisher, command_arm);
@@ -43,6 +50,13 @@ while true
             % Wait for a short period of time
             pause(2);
             
+            % Send the 'up' command
+            command_arm.Data = 'up';
+            send(command_publisher, command_arm);
+            
+            % Wait for a short period of time
+            pause(2);
+
             % Transition to the Wait state
             state = 'Wait';
             disp(['Transitioning to state: ', state]);
@@ -63,7 +77,7 @@ while true
             
         case 'Movement'
             % Loop through the positions 'up', 'pos1', 'pos2', and 'pos3'
-            for i = 1:4
+            for i = 1:6
                 % Send the current position command
                 switch i
                     case 1
@@ -74,6 +88,10 @@ while true
                         command_arm.Data = 'pos2';
                     case 4
                         command_arm.Data = 'pos3';
+                    case 5
+                        command_arm.Data = 'pos4';
+                    case 6
+                        command_arm.Data = 'pos5';
                 end
                 send(command_publisher, command_arm);
                 
@@ -84,7 +102,7 @@ while true
                 % Replace this line with code that listens for a "movement" signal and sets movement_detected accordingly
                 % For demonstration purposes, we'll set movement_detected to true after a fixed delay
                 pause(1);
-                movement_detected = true;
+                movement_detected = false;
                 if movement_detected
                     % Transition to the Open state
                     state = 'Open';
