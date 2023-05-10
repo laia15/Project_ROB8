@@ -4,7 +4,7 @@ load('Time_Data_4_u.mat')
 
 sampling_rate = 250;
 EEG = bandpass_filter_8ch(y(2:end,:).');
-%N = size(y, 2);
+N = floor(size(EEG, 1)/(sampling_rate*10)-1);
 Nch = size(EEG, 2);
 epochs = zeros(Nch, 250*4+1, 1);
 valid_segments = 0; 
@@ -13,7 +13,7 @@ figure
 subplot(4,1,1)
 hold on;
 labels = zeros(size(EEG,1),1);
-for i = 1:size(simTimeData,1)
+for i = 1:N
     flag = (10*i+7)*sampling_rate;
     labels(flag-2*sampling_rate:flag+2*sampling_rate) = 1;
     e =  EEG(flag-2*sampling_rate:flag+2*sampling_rate,:).';
@@ -30,10 +30,6 @@ for i = 1:size(simTimeData,1)
     end
     
 end
-
-% Convert binary labels to categorical labels required for lda
-labels = categorical(labels, [0, 1], {'no movement', 'movement'});
-
 
 subplot(4,1,2)
 t = -2:1/sampling_rate:2;
@@ -74,86 +70,61 @@ ylabel('Amplitude (uV)')
 title(sprintf('Channel %d', i))
 end
 
-%%% Extract features
-
-
-% mean_amp = mean(X, 2); % mean amplitude
-% std_amp = std(X, [], 2); % standard deviation of amplitude
-% [~, ind] = min(X, [], 2); % position of minimum amplitude
-% min_amp = min(X, [], 2); % minimum amplitude
-% slope = zeros(Nch, 1);
-% 
-% for i = 1:Nch
-%     p = polyfit(t, X(i,:), 1);
-%     slope(i) = p(1); % slope of amplitude
-% end
-% 
-% thresh_duration = zeros(Nch, 1);
-% for i = 1:Nch
-%     % Count duration below threshold
-%     threshold = -2; 
-%     below_thresh = X(i,:) < threshold;
-%     diff_thresh = diff(below_thresh);
-%     starts = find(diff_thresh == 1);
-%     stops = find(diff_thresh == -1);
-%     if below_thresh(1)
-%         starts = [1, starts];
-%     end
-%     if below_thresh(end)
-%         stops = [stops, length(X(i,:))];
-%     end
-%     durations = stops - starts;
-%     thresh_duration(i) = sum(durations(durations > 0)); % duration below threshold
-% end
-
-
-% Extract mean amplitude across all channels
-mean_amplitude = mean(EEG, 2);
-
-% Extract standard deviation of amplitude across all channels
-std_amplitude = std(EEG, [], 2);
-
-% Extract position of minimum amplitude across all channels
-[min_amplitude, min_index] = min(EEG, [], 2);
-
-% Extract minimum amplitude across all channels
-min_amplitude = min(EEG, [], 2);
-
-
-
-% Create feature matrix
-feature_matrix = [mean_amplitude, std_amplitude, min_index, min_amplitude];
 
 
 
 % Extract features and labels
-X = feature_matrix;
-Y = labels;
+window_seconds = 4;
+overlap_seconds = 1;
+threshold = -2;
+[X, Y] = extract_features(EEG, labels, sampling_rate, window_seconds, overlap_seconds, threshold);
+
 
 % Split the data into training and testing sets
-[train_idx, test_idx] = crossvalind('HoldOut', length(Y), 0.3);
-X_train = X(train_idx, :);
-Y_train = Y(train_idx);
-X_test = X(test_idx, :);
-Y_test = Y(test_idx);
+cv = cvpartition(size(X,1),'HoldOut',0.3);
+idxTrain = training(cv); % Indices of the training set
+idxTest = test(cv); % Indices of the testing set
 
-% Normalize the data
-X_train = zscore(X_train);
-X_test = zscore(X_test);
+% Split the features and labels into training and testing sets
+X_train = X(idxTrain,:);
+Y_train = Y(idxTrain);
+X_test = X(idxTest,:);
+Y_test = Y(idxTest);
 
 % Train an LDA classifier
-lda = fitcdiscr(X_train, Y_train, 'DiscrimType', 'linear');
+lda = fitcdiscr(X_train, Y_train);
 
-% Predict the labels for the test set
-YTestPred = predict(lda, X_test);
+% Predict labels
+Y_pred = predict(lda, X_test);
+
 
 % Evaluate the performance of the classifier
-accuracy = mean(YTestPred == Y_test);
-confusionMatrix = confusionmat(Y_test, YTestPred);
+confusion_matrix = confusionmat(Y_test, Y_pred);
+
+% Compute accuracy
+accuracy = sum(diag(confusion_matrix)) / sum(confusion_matrix(:));
 
 disp(['Accuracy = ' num2str(accuracy)]);
 disp('Confusion Matrix:');
-disp(confusionMatrix);
+disp(confusion_matrix);
+
+
+
+%%% Loading new dataset
+
+new_EEG = load('EEG_Data_3_u.mat');
+new_EEG = new_EEG.y;
+
+new_EEG = bandpass_filter_8ch(new_EEG(2:end,:).');
+
+[new_X, ~] = extract_features(new_EEG, 'None', sampling_rate, window_seconds, overlap_seconds, threshold);
+
+
+new_Y_pred = predict(lda, new_X);
+figure;
+plot(new_Y_pred)
+
+
 
 
 function [EEG] = bandpass_filter_8ch(eeg_data)
