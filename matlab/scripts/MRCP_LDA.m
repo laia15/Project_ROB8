@@ -1,152 +1,302 @@
 clc; clear all; close all;
-load('EEG_Data_4_u.mat')
-load('Time_Data_4_u.mat')
-
+load('EEG_Data_Alternating_finger_press.mat')
+EEG_data = y(2:end, 2500:end)';
 sampling_rate = 250;
-EEG = bandpass_filter_8ch(y(2:end,:).');
-N = floor(size(EEG, 1)/(sampling_rate*10)-1);
-Nch = size(EEG, 2);
-epochs = zeros(Nch, 250*4+1, 1);
-valid_segments = 0; 
+n_samples = size(EEG_data, 1);
+time = linspace(0, n_samples/sampling_rate, n_samples);
 
-figure
-subplot(4,1,1)
-hold on;
-labels = zeros(size(EEG,1),1);
-for i = 1:N
-    flag = (10*i+7)*sampling_rate;
-    labels(flag-2*sampling_rate:flag+2*sampling_rate) = 1;
-    e =  EEG(flag-2*sampling_rate:flag+2*sampling_rate,:).';
-    MIN = min(e(:,sampling_rate:3*sampling_rate), [], 2);
-    MAX = max(e(:,sampling_rate:3*sampling_rate), [], 2);
-    if max(MAX-MIN)>120
-        plot(mean(e.', 2))
-        xlabel('Time (s)')
-        ylabel('Amplitude (uV)')
-        title('Discarded epochs')
+filtered_EEG = bandpass_filter_8ch(EEG_data);
+figure()
+plot(y(1,2500:end), mean(filtered_EEG(),2).')
+
+% Extract epochs
+epoch_length = 5 * sampling_rate;
+num_epochs = floor(n_samples / epoch_length);
+
+roi_epochs = [];
+roi_labels = [];
+in=[];
+% Loop over epochs
+for epoch = 1:num_epochs
+    % Get the current cycle and phase within the cycle
+    cycle = floor((epoch - 1) / 4);
+    phase = mod(epoch - 1, 4);
+    if phase == 1 || phase == 3
+        start_sample = (epoch - 1) * epoch_length + 1;
+        end_sample = epoch * epoch_length;
+        MIN = min(filtered_EEG(start_sample:end_sample, :), [], 2); %Get the minimum value per channel skipping the 1st second (I geuess avoids getting noise instead of data) 
+        MAX = max(filtered_EEG(start_sample:end_sample, :), [], 2);
+        
+        %Amplitude restriction
+        if max(MAX-MIN)>70
+            in = [in;epoch]; %Count how many epochs passed the condition = bad data
+       
+        else
+            roi_epochs = [roi_epochs; filtered_EEG(start_sample:end_sample, :)];
+            if phase == 3
+                roi_labels = [roi_labels; 1]; % Finger press
+            else
+                roi_labels = [roi_labels; 0]; % No finger press
+            end
+        end
+    end   
+end
+
+
+
+labels = roi_labels;
+roi_epochs = mean(roi_epochs,2);
+
+% Choose one EEG channel to display (for example, the first one)
+chosen_channel = 1;
+
+% Define colors for each class
+colors = ['r', 'b']; % For example, 'b' for mrcp, 'r' for noise
+
+% Create a new figure
+figure;
+
+% Get the number of interesting epochs
+num_interesting_epochs = size(roi_epochs, 1) / epoch_length;
+
+% Loop over interesting epochs
+for epoch = 1:num_interesting_epochs
+    % Get the start and end sample for this epoch
+    start_sample = (epoch - 1) * epoch_length + 1;
+    end_sample = epoch * epoch_length;
+    
+    % Get the time vector for this epoch
+    epoch_time = (start_sample:end_sample) / sampling_rate;
+    
+    % Get the EEG data for this epoch
+    epoch_data = roi_epochs(start_sample:end_sample, chosen_channel);
+    
+    % Get the label for this epoch
+    epoch_label = roi_labels(epoch);
+    
+    % Plot this epoch with the color corresponding to its label
+    plot(epoch_time, epoch_data, colors(epoch_label + 1)); % +1 because MATLAB indices start at 1
+    hold on;
+end
+
+% Add labels and title
+xlabel('Time (s)');
+ylabel('Amplitude');
+title('EEG Data with Epoch Labels');
+legend('Noise', 'MRCP');
+
+
+% Calculate the number of channels
+num_channels = size(roi_epochs, 2);
+
+% Initialize feature matrix
+features = zeros(num_interesting_epochs, num_channels * 7);
+
+% Extract features from each epoch (PN, BP1, BP1 slope BP1-PN, slope BP2-PN, mean, variance)
+for epoch = 1:num_interesting_epochs
+    % Get the start and end sample for this epoch
+    start_sample = (epoch - 1) * epoch_length + 1;
+    end_sample = epoch * epoch_length;
+    
+    % Get the EEG data for this epoch
+    epoch_data = roi_epochs(start_sample:end_sample, :);
+
+    %Get the window with higher probability to contain an MRCP
+    centrum = floor((end_sample-start_sample)/2);
+    epoch_centrum = epoch_data(centrum-250:centrum+500,:);
+    
+    % Calculate mean and variance for the defined window
+    mean_features = mean(epoch_centrum);
+    var_features = var(epoch_centrum);
+
+    %Get PN value and point
+    [b, min_index] = min(epoch_centrum,[],'all');
+    [min_row, ~] = ind2sub(size(epoch_centrum), min_index);    
+    PN = epoch_data(centrum-250+min_row,:);
+    PN_point=centrum-250+min_row;
+
+    %Get BP1
+    if PN_point<500 %If the minimum is before second 0 in the epoch
+        if PN_point ==375 %If the minimum is at second -1,5 in the epoch
+            epoch_BP1 = epoch_data(1:PN_point,:);
+            [b, max_index] = max(epoch_BP1,[],'all');
+            [max_row, ~] = ind2sub(size(epoch_BP1), max_index);
+            BP1 = epoch_data(PN_point+max_row,:);
+        else
+            epoch_BP1 = epoch_data(1:PN_point-375,:);
+            [b, max_index] = max(epoch_BP1,[],'all');
+            [max_row, ~] = ind2sub(size(epoch_BP1), max_index);
+            BP1 = epoch_data(PN_point-375+max_row,:);
+        end
     else
-        valid_segments = valid_segments+1; 
-        epochs(:,:,valid_segments)=e;
+        epoch_BP1 = epoch_data(PN_point-500:PN_point-375,:);
+        [b, max_index] = max(epoch_BP1,[],'all');
+        [max_row, ~] = ind2sub(size(epoch_BP1), max_index);
+        BP1 = epoch_data(PN_point-500+max_row,:);
     end
     
+    %Calculate the slope betweem BP1 and PN
+    slope_BP1 = (PN-BP1)/(PN_point-max_row);
+
+    %Get BP2
+    epoch_BP2 = epoch_data(PN_point-175:PN_point-75,:);
+    lower_limit = -5;
+    upper_limit = -2.5;
+    % Calculate the number of values within the range for each row
+    num_values_within_range = sum(epoch_BP2 >= lower_limit & epoch_BP2 <= upper_limit, 2);
+    % Find the row index with the maximum number of values within the range
+    [max_values, max_index_BP2] = max(num_values_within_range);
+    BP2 = epoch_data(PN_point-175+max_index_BP2,:);
+    
+    %Calculate the slope between BP2 and PN
+    slope_BP2 = (PN-BP2)/(PN_point-max_index_BP2);
+   
+    % Add these features to our feature matrix
+    features(epoch, :) = [mean_features, var_features, PN, BP1, BP2, slope_BP1, slope_BP2];
 end
-
-subplot(4,1,2)
-t = -2:1/sampling_rate:2;
-X = mean(epochs,3);
-hold on
-for n =1:Nch
-    plot(t, X(n,:))
-end
-xlabel('Time (s)')
-ylabel('Amplitude (uV)')
-title('??')
-
-subplot(4,1,3)
-X = mean(epochs,1);
-hold on
-for n =1:valid_segments
-    plot(t, X(1,:,n))
-end
-xlabel('Time (s)')
-ylabel('Amplitude (uV)')
-title('??')
-
-subplot(4,1,4)
-X = mean(epochs,3);
-plot(t, mean(X,1));
-xlabel('Time (s)')
-ylabel('Amplitude (uV)')
-title('Mean of all epochs')
-
-
-figure; % create new figure for plotting
-t = -2:1/sampling_rate:2; % time vector for plotting
-for i = 1:Nch
-subplot(4,2,i)
-plot(t, squeeze(epochs(i,:,:)))
-xlabel('Time (s)')
-ylabel('Amplitude (uV)')
-title(sprintf('Channel %d', i))
-end
-
-
-
-
-% Extract features and labels
-window_seconds = 4;
-overlap_seconds = 1;
-threshold = -2;
-[X, Y] = extract_features(EEG, labels, sampling_rate, window_seconds, overlap_seconds, threshold);
-
-
-% Split the data into training and testing sets
-cv = cvpartition(size(X,1),'HoldOut',0.3);
-idxTrain = training(cv); % Indices of the training set
-idxTest = test(cv); % Indices of the testing set
-
-% Split the features and labels into training and testing sets
-X_train = X(idxTrain,:);
-Y_train = Y(idxTrain);
-X_test = X(idxTest,:);
-Y_test = Y(idxTest);
 
 % Train an LDA classifier
-lda = fitcdiscr(X_train, Y_train);
+lda = fitcdiscr(features, roi_labels);
 
-% Predict labels
-Y_pred = predict(lda, X_test);
+% Train an LDA classifier with cross-validation
+cvmodel = crossval(lda);
 
+% Predict using the trained LDA classifier
+predicted_labels = kfoldPredict(cvmodel);
 
-% Evaluate the performance of the classifier
-confusion_matrix = confusionmat(Y_test, Y_pred);
+% Calculate performance metrics
+accuracy = 1 - kfoldLoss(cvmodel);
+fprintf('Cross-validated Accuracy: %.2f\n', accuracy * 100);
 
-% Compute accuracy
-accuracy = sum(diag(confusion_matrix)) / sum(confusion_matrix(:));
-
-disp(['Accuracy = ' num2str(accuracy)]);
-disp('Confusion Matrix:');
-disp(confusion_matrix);
-
-
-
-%%% Loading new dataset
-
-new_EEG = load('EEG_Data_3_u.mat');
-new_EEG = new_EEG.y;
-
-new_EEG = bandpass_filter_8ch(new_EEG(2:end,:).');
-
-[new_X, ~] = extract_features(new_EEG, 'None', sampling_rate, window_seconds, overlap_seconds, threshold);
-
-
-new_Y_pred = predict(lda, new_X);
+% Plot the confusion matrix
 figure;
-plot(new_Y_pred)
+confusionchart(labels, predicted_labels);
 
 
+%% Test
+% Load new data
+eeg13 = load('EEG_Data_4_u.mat');
+new_EEG_data = eeg13.y(2:end, 2500:end)';
+% Preprocess new data (filtering)
+new_filtered_EEG =  bandpass_filter_8ch(new_EEG_data);
 
+% Extract epochs from new data
+n_samples_new = size(new_EEG_data, 1);
+num_epochs_new = floor(n_samples_new / epoch_length);
+new_epochs = [];
+time = linspace(0, n_samples_new/sampling_rate, n_samples_new);
+for epoch = 1:num_epochs_new
+    start_sample = (epoch - 1) * epoch_length + 1;
+    end_sample = epoch * epoch_length;
+    new_epochs= [new_epochs; new_filtered_EEG(start_sample:end_sample, :)];
+end
+new_epochs = mean(new_epochs,2);
 
-function [EEG] = bandpass_filter_8ch(eeg_data)
-N_ch=size(eeg_data,2);
-fsamp = 250; 
-f_low = 3;
-f_high = 0.1;
-order = 2;
+% Extract features from new epochs
+new_features = zeros(num_epochs_new, 1 * 7);
+for epoch = 1:num_epochs_new
+     % Get the start and end sample for this epoch
+    start_sample = (epoch - 1) * epoch_length + 1;
+    end_sample = epoch * epoch_length;
+    
+    % Get the EEG data for this epoch
+    epoch_data = new_epochs(start_sample:end_sample, :);
+    centrum = floor((end_sample-start_sample)/2);
+    epoch_centrum = epoch_data(centrum-250:centrum+500,:);
+    % Calculate mean and variance
+    mean_features = mean(epoch_centrum);
+    var_features = var(epoch_centrum);
 
-% bandpass EEG filter
-Wn = [f_high, f_low]/fsamp*2;
-[b,a]=butter(order,Wn,'bandpass');
+    %Calculate PN
+    [b, min_index] = min(epoch_centrum,[],'all');
+    [min_row, ~] = ind2sub(size(epoch_centrum), min_index); 
+    PN = epoch_data(centrum-250+min_row,:);
+    PN_point=centrum-250+min_row;
 
-for i=1:N_ch
-    eeg_data(:,i)=transpose(filtfilt(b,a,eeg_data(:,i)));
+    %Calculate BP1
+    if PN_point<500
+        if PN_point ==375
+            epoch_BP1 = epoch_data(1:PN_point,:);
+        else
+            epoch_BP1 = epoch_data(1:PN_point-375,:);
+        end
+    else
+        epoch_BP1 = epoch_data(PN_point-500:PN_point-375,:);
+    end
+
+    [b, max_index] = max(epoch_BP1,[],'all');
+    [max_row, ~] = ind2sub(size(epoch_BP1), max_index);
+    BP1 = epoch_data(PN_point-250+max_row,:);
+    
+    %Calculate slope between BP1 and PN
+    slope_BP1 = (PN-BP1)/(PN_point-max_row);
+    
+    %Calculate BP2
+    epoch_BP2 = epoch_data(PN_point-175:PN_point-75,:);
+    lower_limit = -5;
+    upper_limit = -2.5;
+    % Calculate the number of values within the range for each row
+    num_values_within_range = sum(epoch_BP2 >= lower_limit & epoch_BP2 <= upper_limit, 2);
+    
+    % Find the row index with the maximum number of values within the range
+    [max_values, max_index_BP2] = max(num_values_within_range);
+    BP2 = epoch_data(PN_point-175+max_index_BP2,:);
+    
+    %Calculate the slope between BP2 and PN
+    slope_BP2 = (PN-BP2)/(PN_point-max_index_BP2);
+    
+    % Add these features to our feature matrix
+    new_features(epoch, :) = [mean_features, var_features, PN, BP1, BP2, slope_BP1, slope_BP2];
+
 end
 
-% Notch filter
- Wn = [48 52]/fsamp*2;                % Cutoff frequencies
-[bn,an] = butter(2,Wn,'stop');        % Calculate filter coefficients
-for i=1:N_ch
-    EEG(:,i)=transpose(filtfilt(bn,an,eeg_data(:,i)));
+% Predict labels for new data using the trained LDA classifier
+new_predicted_labels = predict(lda, new_features);
+
+legend_data = [];
+
+% Choose one EEG channel to display (for example, the first one)
+chosen_channel = 1;
+
+% Define colors for each class
+colors = ['r', 'b']; % For example, 'b' for non-blinking, 'r' for blinking
+
+% Create a new figure
+figure;
+
+% Loop over epochs
+for epoch = 1:num_epochs_new
+    % Get the start and end sample for this epoch
+    start_sample = (epoch - 1) * epoch_length + 1;
+    end_sample = epoch * epoch_length;
+    
+    % Get the time vector for this epoch
+    epoch_time = time(start_sample:end_sample);
+    
+    % Get the EEG data for this epoch
+    epoch_data = new_EEG_data(start_sample:end_sample, chosen_channel);
+    
+    % Get the predicted label for this epoch
+    epoch_label = new_predicted_labels(epoch);
+    
+    % Plot this epoch with the color corresponding to its label
+    plot(epoch_time, epoch_data, 'Color',colors(epoch_label + 1)); % +1 because MATLAB indices start at 1
+    hold on;
+    % Store data for legend
+    if ~ismember(epoch_label, legend_data)
+        legend_data = [legend_data, epoch_label];
+    end
 end
 
-end
+% Add labels and title
+xlabel('Time (s)');
+ylabel('Amplitude');
+title('EEG Data with Predicted Labels');
+% Create legend
+legend_str = {'No movement', 'Movement'};
+legend(legend_str(legend_data + 1));
+
+
+
+
+
